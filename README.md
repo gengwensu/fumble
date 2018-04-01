@@ -29,7 +29,8 @@ fumble will run on http://localhost:3000 and will support the following REST API
     {
     All users: [
     1,
-    2
+    2,
+    3
     ]
     }
 
@@ -39,26 +40,25 @@ fumble will run on http://localhost:3000 and will support the following REST API
     returns a list of users who cross paths with {userId}
 
     ```
-    $ curl http://localhost:3000/fumble/friends/1
-    {              
-    friends: [    
-    2             
-    ]              
+    $ curl http://localhost:3000/fumble/friends/1 
+    {                                             
+    friends: [                                   
+    {                                            
+    "from": 1,                                  
+    "time": "2018-03-31T16:35:20.8855177-04:00",
+    "to": 2                                     
+    }                                                                              
+    ]                                                         
     }
-                  
+
     ```
  
 the server should respond with 404 to all other requests not listed above
  
  # environment & build
- require Go and mySql
- dbinit.sql should be run after the installation of mysql to set up the db environment
- 
-$ go build ../src/github.com/gengwensu/fumble/fumble.go ../src/github.com/gengwensu/fumble/queryDB.go
+$ go build ../src/github.com/gengwensu/fumble/fumble.go 
 
 $./fumble &
 
 ...
  
-# Implementation
-A cache with MAXCACHEENTRY entries are added to improve the performance. fumble will check the cache before querying the location table in the database.

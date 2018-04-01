@@ -12,14 +12,21 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	_ "github.com/go-sql-driver/mysql"
+	"time"
+	//database/sql
+	//_ "github.com/go-sql-driver/mysql"
 )
 
 type InPacket struct {
 	UserId    int `json:"userId"`
 	Longitude int `json:"long"` //int for now, float for real
 	Latitude  int `json:"lat"`
+}
+
+type OutPacket struct {
+	User    int       `json:"from"`
+	OutTime time.Time `json:"time"`
+	Friend  int       `json:"to"`
 }
 
 type Location struct {
@@ -64,19 +71,23 @@ func (ds *AppContext) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				http.Error(w, "Error decoding JSON request body.",
 					http.StatusInternalServerError)
-				fmt.Fprintf(w, "inData %v\n", inData)
 			}
 			inId, inLoc := inData.UserId, Location{inData.Longitude, inData.Latitude}
-			if _, ok := ds.LocDb[inId]; ok { //new userId
-				ds.LocDb[inId] = inLoc
-				//adding useId into mySql user table
-				//adding indata with create timesatmp into mysql location table
-			} else { //update in memory cache
-				ds.LocDb[inId] = inLoc
-				//adding indata with create timesatmp into mysql location table
+			if inId >= 0 &&
+				(inLoc.Longitude < 180 && inLoc.Longitude > -180) &&
+				(inLoc.Latitude < 90 && inLoc.Latitude > -90) {
+				if _, ok := ds.LocDb[inId]; ok { //new userId
+					ds.LocDb[inId] = inLoc
+					//adding useId into mySql user table
+					//adding indata with timesatmp into mysql location table
+				} else { //update in memory cache
+					ds.LocDb[inId] = inLoc
+					//adding indata with timesatmp into mysql location table
+				}
+				fmt.Fprintf(w, "http %d\n", http.StatusOK)
+			} else { //bad input data
+				fmt.Fprintf(w, "http %d\n", http.StatusBadRequest)
 			}
-
-			fmt.Fprintf(w, "http %d\n", http.StatusOK)
 		} else {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		}
@@ -105,12 +116,12 @@ func (ds *AppContext) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 					http.Error(w, "Id not valid", http.StatusBadRequest)
 				} else {
 					cur := ds.LocDb[id]
-					out := []int{}
+					out := []OutPacket{}
 					for k, v := range ds.LocDb {
 						//ToDo, not using exactly equal, using within a distance d
-						if k != id && v.Longitude == cur.Longitude && v.Latitude == cur.Latitude {
-							//found a friend
-							out = append(out, k)
+						if k != id && v.Longitude == cur.Longitude && v.Latitude == cur.Latitude { //found a friend
+							temp := OutPacket{id, time.Now(), k}
+							out = append(out, temp)
 						}
 					}
 					dataout, err := json.MarshalIndent(out, "", " ")
